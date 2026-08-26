@@ -42,5 +42,26 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// DIAG-TEMP — da rimuovere dopo la diagnosi. Chiama Lara direttamente,
+// bypassando la route /translate, per isolare se "Invalid challenge
+// signature" viene dal nostro codice o dall'SDK/account Lara stesso.
+// Nessuna credenziale nella risposta: solo esito e messaggio d'errore.
+app.get('/diag-lara', async (req, res) => {
+  try {
+    const result = await lara.translate('ciao', 'it-IT', 'ro-RO');
+    res.json({ ok: true, translation: result.translation });
+  } catch (err) {
+    res.json({
+      ok: false,
+      message: err.message || String(err),
+      name: err.name || null,
+      // Alcuni errori dell'SDK Lara portano dettagli extra (status, body
+      // della risposta interna): li includiamo se presenti, altrimenti null.
+      status: err.status || err.statusCode || null,
+      details: err.details || err.response?.data || null
+    });
+  }
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Lara proxy in ascolto sulla porta ${port}`));
