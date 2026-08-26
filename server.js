@@ -4,15 +4,20 @@ const { Credentials, Translator } = require('@translated/lara');
 const app = express();
 app.use(express.json());
 
-// Le credenziali stanno SOLO qui sul server, mai nell'app iOS
+// Le credenziali stanno SOLO qui sul server, mai nell'app iOS.
+// .trim() è deliberato: un copia-incolla da un altro sito (dashboard Lara,
+// terminale, note) può introdurre spazi o ritorni a capo invisibili a fine
+// stringa. La firma crittografica dell'SDK Lara è sensibile al singolo
+// carattere: un valore sporco produce "Invalid challenge signature" invece
+// di un errore di autenticazione più leggibile.
 const credentials = new Credentials(
-  process.env.LARA_ACCESS_KEY_ID,
-  process.env.LARA_ACCESS_KEY_SECRET
+  (process.env.LARA_ACCESS_KEY_ID || '').trim(),
+  (process.env.LARA_ACCESS_KEY_SECRET || '').trim()
 );
 const lara = new Translator(credentials);
 
 // Chiave semplice per evitare che chiunque usi il tuo proxy gratuitamente
-const PROXY_SECRET = process.env.PROXY_SECRET;
+const PROXY_SECRET = (process.env.PROXY_SECRET || '').trim();
 
 app.post('/translate', async (req, res) => {
   if (req.header('x-proxy-key') !== PROXY_SECRET) {
