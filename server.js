@@ -214,6 +214,18 @@ function createApp({ lara, config = loadConfig(), now = Date.now, log } = {}) {
       return res.json({ translation });
     } catch (err) {
       clearTimeout(timer);
+      // DIAG-TEMP (2026-09-28): errore grezzo di Lara, per capire se un 402
+      // interno e' davvero esaurimento quota o altro (vedi classifyLaraError).
+      // Nessun testo dell'utente qui dentro, solo metadati dell'errore SDK.
+      // Da rimuovere a diagnosi conclusa.
+      write({
+        level: 'error', event: 'DIAG_lara_raw_error', id,
+        rawStatusCode: err && err.statusCode,
+        rawStatus: err && err.status,
+        rawType: err && err.type,
+        rawName: err && err.name,
+        rawMessage: err && err.message,
+      });
       const c = classifyLaraError(err);
       if (c.code === 'QUOTA_EXHAUSTED' && config.quotaBlockSeconds) {
         state.quotaBlockedUntil = now() + config.quotaBlockSeconds * 1000;
