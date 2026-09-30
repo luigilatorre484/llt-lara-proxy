@@ -8,6 +8,7 @@
 // Lara. Da rimuovere non appena la diagnosi è conclusa.
 
 const WebSocket = require('ws');
+const { loadCartesiaConfig, safeEqual } = require('./cartesiaProxy');
 
 function attachWsTest(server, { log } = {}) {
   const write = log || ((line) => console.log(line));
@@ -36,9 +37,20 @@ function attachWsTest(server, { log } = {}) {
     const headerValue = req.headers['x-proxy-key'];
     const present = typeof headerValue === 'string' && headerValue.length > 0;
     const length = present ? headerValue.length : 0;
+    // Ulteriore verifica sicura (2026-09-30): confronta l'header ricevuto
+    // qui con la STESSA CARTESIA_PROXY_SECRET che legge `/cartesia/tts`
+    // (stesso `loadCartesiaConfig`/`safeEqual`, mai il valore stesso),
+    // per stabilire se il segreto configurato su Render è davvero quello
+    // che ci aspettiamo — senza mai stamparlo o restituirlo.
+    const cartesiaConfig = loadCartesiaConfig();
+    const matchesCartesiaProxySecret = present && safeEqual(headerValue, cartesiaConfig.proxySecret);
+    const secretConfiguredLength = (cartesiaConfig.proxySecret || '').length;
     wss.handleUpgrade(req, socket, head, (clientWs) => {
       write('[WS-TEST] connected');
-      clientWs.send(`ok proxyHeaderPresent=${present} length=${length}`);
+      clientWs.send(
+        `ok proxyHeaderPresent=${present} length=${length} ` +
+        `matchesCartesiaProxySecret=${matchesCartesiaProxySecret} secretConfiguredLength=${secretConfiguredLength}`
+      );
       clientWs.close(1000, 'ws-test done');
     });
   });
