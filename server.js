@@ -258,6 +258,7 @@ module.exports = { createApp, classifyLaraError, loadConfig };
 
 if (require.main === module) {
   const { Credentials, Translator } = require('@translated/lara');
+  const { attachCartesiaProxy } = require('./cartesiaProxy');
   // Le credenziali Lara stanno SOLO qui sul server. .trim(): un copia-incolla puo' introdurre spazi o
   // ritorni a capo invisibili e la firma dell'SDK e' sensibile al singolo carattere.
   const credentials = new Credentials(
@@ -268,5 +269,9 @@ if (require.main === module) {
   const config = loadConfig();
   if (!config.proxySecret) console.error(JSON.stringify({ level: 'error', event: 'PROXY_SECRET non configurato: tutte le richieste verranno rifiutate' }));
   const port = process.env.PORT || 3000;
-  createApp({ lara, config }).listen(port, () => console.log(`Lara proxy in ascolto sulla porta ${port}`));
+  // Stesso processo/porta di Lara: il relay Cartesia si aggancia solo
+  // all'evento `upgrade` del server HTTP (path /cartesia/tts), nessuna
+  // route Express esistente viene toccata.
+  const server = createApp({ lara, config }).listen(port, () => console.log(`Lara proxy in ascolto sulla porta ${port}`));
+  attachCartesiaProxy(server);
 }
