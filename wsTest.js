@@ -25,9 +25,20 @@ function attachWsTest(server, { log } = {}) {
     if (pathname !== '/ws-test') return;
 
     write('[WS-TEST] upgrade_received');
+    // Diagnostica aggiuntiva (2026-09-30): i log Render si sono dimostrati
+    // inaffidabili per questa indagine (Live Tail non ha mostrato righe che
+    // sappiamo per certo essere state scritte — vedi `/cartesia/tts`).
+    // Invece di fidarci dei log, restituiamo l'ESITO al client stesso, nel
+    // payload del messaggio WS: mai il valore dell'header, solo se è
+    // presente e la sua lunghezza — sufficiente per scoprire dall'esterno,
+    // senza dipendere da Render, se un header custom sopravvive fino a
+    // Node attraverso Cloudflare/Render durante un upgrade WebSocket.
+    const headerValue = req.headers['x-proxy-key'];
+    const present = typeof headerValue === 'string' && headerValue.length > 0;
+    const length = present ? headerValue.length : 0;
     wss.handleUpgrade(req, socket, head, (clientWs) => {
       write('[WS-TEST] connected');
-      clientWs.send('ok');
+      clientWs.send(`ok proxyHeaderPresent=${present} length=${length}`);
       clientWs.close(1000, 'ws-test done');
     });
   });
