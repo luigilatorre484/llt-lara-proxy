@@ -138,13 +138,25 @@ function attachCartesiaProxy(server, {
     if (pathname !== '/cartesia/tts') return;
 
     const id = crypto.randomBytes(4).toString('hex');
+    // DIAG-TEMP (2026-09-30, cold-launch fix): diagnostica del solo stato di
+    // configurazione/presenza, MAI del valore delle chiavi — da rimuovere a
+    // diagnosi conclusa.
+    logLine('upgrade_received', id, { path: pathname });
+    const headerPresent = typeof req.headers['x-proxy-key'] === 'string' && req.headers['x-proxy-key'].length > 0;
+    logLine('diag', id, {
+      apiKeyConfigured: !!config.apiKey,
+      proxySecretConfigured: !!config.proxySecret,
+      proxyHeaderPresent: headerPresent,
+    });
 
     if (!config.apiKey || !config.proxySecret || !safeEqual(req.headers['x-proxy-key'], config.proxySecret)) {
+      logLine('diag', id, { authResult: 'rejected' });
       logLine('connection_rejected', id, { reason: 'bad_proxy_key' });
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       return;
     }
+    logLine('diag', id, { authResult: 'accepted' });
 
     const t = now();
     const minute = Math.floor(t / 60000);
@@ -163,6 +175,7 @@ function attachCartesiaProxy(server, {
     }
 
     wss.handleUpgrade(req, socket, head, (clientWs) => {
+      logLine('websocket_upgrade_success', id);
       handleConnection(clientWs, id);
     });
   });
