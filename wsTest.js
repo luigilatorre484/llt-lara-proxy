@@ -45,11 +45,20 @@ function attachWsTest(server, { log } = {}) {
     const cartesiaConfig = loadCartesiaConfig();
     const matchesCartesiaProxySecret = present && safeEqual(headerValue, cartesiaConfig.proxySecret);
     const secretConfiguredLength = (cartesiaConfig.proxySecret || '').length;
+    // Diagnostica ulteriore richiesta esplicitamente (2026-09-30): stato
+    // GREZZO di process.env, PRIMA di qualunque `.trim()`/fallback di
+    // `loadCartesiaConfig()` — per distinguere "la variabile non è affatto
+    // nel processo" da "c'è ma diventa vuota dopo l'elaborazione". Mai il
+    // valore, solo presenza e lunghezza grezza.
+    const rawSecret = process.env.CARTESIA_PROXY_SECRET;
+    const rawSecretDefined = rawSecret !== undefined;
+    const rawSecretLength = rawSecret !== undefined ? rawSecret.length : -1;
     wss.handleUpgrade(req, socket, head, (clientWs) => {
       write('[WS-TEST] connected');
       clientWs.send(
         `ok proxyHeaderPresent=${present} length=${length} ` +
-        `matchesCartesiaProxySecret=${matchesCartesiaProxySecret} secretConfiguredLength=${secretConfiguredLength}`
+        `matchesCartesiaProxySecret=${matchesCartesiaProxySecret} secretConfiguredLength=${secretConfiguredLength} ` +
+        `rawSecretDefined=${rawSecretDefined} rawSecretLength=${rawSecretLength}`
       );
       clientWs.close(1000, 'ws-test done');
     });
